@@ -1,0 +1,68 @@
+import os
+from dotenv import load_dotenv
+import streamlit as st
+import warnings
+
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
+
+# Suppress LangChain agent warnings
+warnings.filterwarnings("ignore", message="LangChain agents will continue to be supported")
+
+# Load API key
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    st.error("Please set OPENAI_API_KEY in your .env file")
+    st.stop()
+
+# Initialize LLM
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3, api_key=api_key)
+
+# Tool 1: Extract Key Points
+def extract_key_points(feedback: str) -> str:
+    prompt = f"Extract the key points from the following user feedback:\n{feedback}\n\nKey Points:"
+    response = llm.invoke([HumanMessage(content=prompt)])
+    return response.content.strip()
+
+# Tool 2: Summarize Key Points
+def summarize_key_points(key_points: str) -> str:
+    prompt = f"Summarize the following key points clearly and concisely:\n{key_points}\n\nSummary:"
+    response = llm.invoke([HumanMessage(content=prompt)])
+    return response.content.strip()
+
+# Tool 3: Prepare Email
+def prepare_email(summary: str) -> str:
+    prompt = f"Write a professional email to the team with the following summary:\n{summary}\n\nEmail:"
+    response = llm.invoke([HumanMessage(content=prompt)])
+    return response.content.strip()
+
+# ------------------ Streamlit UI ------------------
+st.title("🧠 Multi-Agent Feedback Analyzer")
+st.markdown("Paste user feedback, and get structured output using 3 LLM tools.")
+
+feedback = st.text_area("✍️ Enter User Feedback", height=200, placeholder="e.g. The app is slow and crashes frequently.")
+
+if st.button("🔍 Analyze"):
+    if not feedback.strip():
+        st.warning("Please enter some feedback text.")
+        st.stop()
+
+    with st.spinner("Processing..."):
+        try:
+            # Run toolchain manually for clarity
+            key_points = extract_key_points(feedback)
+            summary = summarize_key_points(key_points)
+            email = prepare_email(summary)
+
+            st.success("✅ Key Points:")
+            st.markdown(key_points)
+
+            st.success("🧾 Summary:")
+            st.markdown(summary)
+
+            st.success("✉️ Email Draft:")
+            st.markdown(email)
+
+        except Exception as e:
+            st.error(f"Error: {e}")
